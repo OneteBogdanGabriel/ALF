@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+
+
+<html>
+
+<head>
+
+
+<title>Regex Addition</title>
+
+
+<script>
+
+function ParseCode() 
+{
+	
+var vars_table = {};
+	
+var output = [];
+
+	
+var code = document.getElementById("code_area").value;
+	
+	
+// first we split the code into "statements" or instructions followed by "\(>w<\)"
+	
+var statement_pattern = /(.+?)\s*\\\(>w<\\\)/gm;
+	
+while(statement = statement_pattern.exec(code)) 
+{
+	
+		
+// we support only one type of statement: the definition of a variable
+		
+// we split the statement in 2 parts : 
+// the new variable name , and its assigned value
+		
+var define_pattern = /var\s+([A-Za-z]\w*)\s*=\s*(.+)/g;
+		
+if (definition = define_pattern.exec(statement[1])) //first half of the statement ; the variable
+{
+			
+//this is all in the name of the var name
+			
+var new_var = definition[1];
+			
+			
+// due to the complexity of the value, since it can either be a variable 
+// or a sum of variables and numbers, the code is also more complicated
+			
+var source = definition[2];
+			
+var new_value;
+			
+var valid_value = true;
+			
+			
+//1. if the value is a number value, we convert it into a number
+			
+if (/^\d+\.\d+$/g.test(source)) 
+{
+				
+new_value = parseFloat(source);
+		
+
+} else if (/^\d+$/g.test(source)) 
+{
+				
+new_value = parseInt(source);
+	
+	
+			
+// 2. if the value is an addition, we need to parse both terms
+			
+//    and see if they are numbers or names of other variables
+			
+} 
+else if (added = /^(.+?)\s*\+\s*(.+?)$/g.exec(source)) 
+{
+				
+				
+// we're parsing both terms using the same method, using a loop to avoid repetition
+				var terms = [];
+				
+				
+for(var i=0; i<2; i++) 
+{
+				
+					
+// the term is a number
+					
+if (/^\d+\.\d+$/g.test(added[i+1])) {
+						
+terms[i] = parseFloat(added[i+1]);
+
+
+} else if (/^\d+$/g.test(added[i+1])) {
+						
+terms[i] = parseInt(added[i+1]);
+
+
+// the term is a previosly defined variable
+					
+} 
+else if(typeof(vars_table[added[i+1]]) != "undefined") 
+{
+						
+terms[i] = vars_table[added[i+1]];
+					
+				
+} 
+else 
+{
+						
+output.push("Undefined variable " + added[i+1]);
+						valid_value = false;
+						
+break;
+					
+}
+				
+}
+				
+				
+new_value = terms[0] + terms[1];
+			
+} 
+else 
+{
+				
+valid_value = false;
+				
+output.push("Invalid definition for "+new_var);
+			
+}
+			
+			
+if (valid_value) 
+{
+				
+vars_table[new_var] = new_value;
+				
+output.push("Defined the var "+new_var+" with the value "+new_value);
+			
+}
+		
+} 
+else 
+{
+			
+output.push("Invalid instruction");
+		
+}
+	
+}
+	
+	
+document.getElementById("output").innerHTML = output.join("<br/>");
+}
+
+</script>
+
+
+</head>
+
+<body>
+	
+
+<textarea id="code_area" name="code" form="code_form" cols="40" rows="15">
+
+var x =5 \(>w<\)
+
+var y = 7.1 \(>w<\)
+
+var zet = x + y \(>w<\)
+
+var a = x + 6.2 \(>w<\)
+
+var b1ce = 1.7+y \(>w<\)
+
+var c = 2.5 + 2\(>w<\)
+
+</textarea>
+
+
+<form id="code_form" onsubmit="ParseCode(); return false;">
+	
+<input type="submit" value="Run" />
+
+</form>
+
+
+<div id="output">
+</div>
+
+
+</body>
+
+</html>
