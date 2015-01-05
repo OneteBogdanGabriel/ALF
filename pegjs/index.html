@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<script src="peg-0.8.0.min.js"></script>
+
+<script>
+var varsTable;
+
+function print(text) {
+	document.getElementById("output").innerHTML += text + "<br/>";
+}
+
+function parseExpr(expr) {
+	if (typeof(expr) == "object") {
+		switch (expr.op) {
+		case "+":
+			return parseExpr(expr.left) + parseExpr(expr.right);
+		case "-":
+			return parseExpr(expr.left) - parseExpr(expr.right);
+		case "*":
+			return parseExpr(expr.left) * parseExpr(expr.right);
+		case "/":
+			return parseExpr(expr.left) / parseExpr(expr.right);
+		case "<":
+			return parseExpr(expr.left) < parseExpr(expr.right);
+		case ">":
+			return parseExpr(expr.left) > parseExpr(expr.right);
+		case "==":
+			return parseExpr(expr.left) == parseExpr(expr.right);
+		case "!=":
+			return parseExpr(expr.left) != parseExpr(expr.right);
+		case "var":
+			return varsTable[expr.name];
+		}
+	} else {
+		return expr;
+	}
+}
+
+function parseStatements(list) {
+	for (var i=0; i<list.length; i++) {
+		var statement = list[i];
+		
+		switch (statement.type) {
+		case "=":
+			varsTable[statement.variable] = parseInt(parseExpr(statement.value));
+			break;
+		case "if":
+			var testValue = parseExpr(statement.cond);
+			if (testValue) {
+				parseStatements(statement.ifBlock);
+			} else {
+				parseStatements(statement.elseBlock);
+			}
+			break;
+		case "print":
+			print(statement.message);
+			break;
+		}
+	}
+}
+
+function ParseCode() {
+	try {
+		varsTable = [];
+		document.getElementById("output").innerHTML = "";
+
+		var parser_code = document.getElementById("parser").value;
+		var code = document.getElementById("code").value;
+		
+		var parser = PEG.buildParser(parser_code);
+		var tree = parser.parse(code);
+		console.log(tree);
+		
+		parseStatements(tree);
+	}
+	catch(err) {
+		print("Parse Error at line "+err.line+", col "+err.column+": "+err.message);
+	}
+}
+</script>
+
+</head>
+<body>
+
+<textarea id="parser" cols="80" rows="20">
+start
+  = statement+
+
+statement
+ = _ s:statementType _ (endl/eof) {return s;}
+
+statementType
+  = printCall
+  / definition
+  / if
+
+
+printCall
+ = "print" _ message:string {return {type:"print", message:message};}
+
+
+if
+  = "if" _ cond:compExp _ "{" endl ifBlock:statement* _ "}" _ "else" _ "{" endl elseBlock:statement* _ "}" {return {type:"if", cond:cond, ifBlock:ifBlock, elseBlock:elseBlock};}
+
+compExp
+  = left:value op:compToken right:value { return {op:op, left:left, right:right}; }
+
+compToken
+  = "<"
+  / ">"
+  / "=="
+  / "!="
+
+
+definition
+  = variable:varName _ "=" _ value:value { return {type:"=", variable:variable, value:value}; }
+  
+addExp
+  = left:multiExp _ op:addToken _ right:addExp { return {op:op, left:left, right:right}; }
+  / multiExp
+
+addToken
+  = "+"
+  / "-"
+
+multiExp
+  = left:primary _ op:multiToken _ right:multiExp { return {op:op, left:left, right:right}; }
+  / primary
+
+multiToken
+  = "*"
+  / "/"
+
+
+value
+  = addExp
+
+primary
+  = integer
+  / varRef
+  / "(" value:value ")" { return value; }
+
+
+varName
+  = first:[a-zA-Z] rest:[a-zA-Z0-9]* {return first + rest.join("");}
+
+varRef
+  = name:varName {return {op:"var", name:name};}
+
+
+integer "integer"
+  = digits:[0-9]+ { return parseInt(digits.join(""), 10); }
+
+string
+  = "\"" letters:[^"]* "\"" { return letters.join(""); }
+
+
+_
+  = [ \t]*
+
+endl
+  = [\n]+
+
+eof
+ = !.
+</textarea>
+
+<textarea id="code" cols="40" rows="20">
+a=2*3+4
+b = a + 2
+
+if a<b {
+  print "a is smaller than b"
+} else {
+  print "a is bigger than b or equal"
+}
+</textarea>
+
+<button onclick="ParseCode()" style="display:block">Run</button>
+
+<div id="output"></div>
+
+</body>
+</html>
